@@ -2,7 +2,7 @@
 
 namespace Adaptcms\SiteTypes\Models;
 
-use Glorand\Model\Settings\Traits\HasSettingsRedis;
+use Glorand\Model\Settings\Traits\HasSettingsTable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
@@ -19,7 +19,7 @@ class SiteType extends Model
   use
     HasComposer,
     HasPackager,
-    HasSettingsRedis,
+    HasSettingsTable,
     HasUuid,
     Searchable;
 
