@@ -4,7 +4,6 @@ namespace Adaptcms\SiteTypes;
 
 use Adaptcms\Auth\Models\Permission;
 use Adaptcms\Base\Models\Package;
-use Adaptcms\SiteTypes\Models\SiteType;
 
 class SiteTypes
 {

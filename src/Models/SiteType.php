@@ -235,4 +235,46 @@ class SiteType extends Model
       'siteType' => $this->id
     ]);
   }
+
+  /**
+  * Sync Package Folder
+  *
+  * @param string $classPath
+  *
+  * @return void
+  */
+  public static function syncPackageFolder(string $classPath)
+  {
+    // we can determine the vendor and package by the class path
+    $ex = explode('\\', $classPath);
+
+    $vendor = $ex[0];
+    $package = $ex[1];
+
+    // get vendor path
+    $composerVendor = strtolower($vendor);
+    $composerPackage = strtolower($package);
+
+    $vendorPath = 'vendor/' . $composerVendor . '/' . $composerPackage;
+
+    // ensure vendor path exists
+    if (Storage::disk('app')->exists($vendorPath)) {
+      // check if the package folder does not exist
+      if (!Storage::disk('site-types')->exists($vendor . '/' . $package)) {
+        // if vendor folder does not exist, create it
+        if (!Storage::disk('site-types')->exists($vendor)) {
+          Storage::disk('site-types')->makeDirectory($vendor);
+        }
+      }
+
+      // copy package folder over to SiteTypes folder
+      File::copyDirectory(base_path($vendorPath), base_path('SiteTypes/' . $vendor . '/' . $package));
+
+      // remove `.git` folder from SiteTypes directory
+      $gitPath = $vendor . '/' . $package . '/.git';
+      if (Storage::disk('site-types')->exists($gitPath)) {
+        Storage::disk('site-types')->deleteDirectory($gitPath);
+      }
+    }
+  }
 }
