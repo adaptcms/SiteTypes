@@ -37,6 +37,7 @@
             <HeaderColumn label="GitHub" />
             <HeaderColumn label="Created" field="created_at" :sortBy="sortBy" :sortDir="sortDir" />
             <EmptyHeaderColumn />
+            <EmptyHeaderColumn />
           </tr>
         </thead>
         <tbody class="bg-white">
@@ -72,6 +73,25 @@
               <span class="text-sm leading-5 text-gray-500">
                 {{ siteType.created_at | formatDate }}
               </span>
+            </TableColumn>
+            <TableColumn>
+              <inertia-link
+                v-if="!siteType.is_active"
+                :href="$route('site_types.admin.show_activate', { siteType: siteType.id })"
+                class="inline-block text-center bg-pink-500 text-white text-base font-bold rounded-full py-2 px-4 lg:my-4 lg:py-4 lg:px-8 shadow-lg opacity-75 hover:opacity-100"
+
+              >
+                Activate
+              </inertia-link>
+
+              <button
+                v-if="siteType.is_active"
+                type="button"
+                class="inline-block text-center bg-gray-500 text-white text-base font-bold rounded-full py-2 px-4 lg:my-4 lg:py-4 lg:px-8 shadow-lg opacity-75 hover:opacity-100"
+                @click.prevent="deactivateSiteType(siteType)"
+              >
+                Deactivate
+              </button>
             </TableColumn>
             <TableColumn customClass="text-right">
               <ShowAction route="site_types.admin.show" :routeParams="{ siteType: siteType.id }" />
@@ -134,6 +154,18 @@ export default {
     ShowAction,
     TableColumn,
     TableStart
+  },
+
+  methods: {
+    async deactivateSiteType (siteType) {
+      if (confirm('Are you sure you want to deactivate this site type?')) {
+        let url = this.$route('site_types.admin.update', { siteType: siteType.id })
+
+        this.$inertia.post(url, {
+          is_active: false
+        })
+      }
+    }
   }
 }
 </script>

@@ -69,7 +69,7 @@ class SiteTypesController extends Controller
     // create site type
     $siteType->fill($request->only('vendor', 'package', 'github_url'));
 
-    $siteType->manualStore($request->publish);
+    $siteType->manualStore($request->publish, $request->overwriteLayout);
 
     // flash message and redirect
     $request->session()->flash('message', 'Site Type has been created!');
@@ -107,7 +107,7 @@ class SiteTypesController extends Controller
     // save SiteType
     $siteType->fill($request->only('vendor', 'package', 'github_url'));
 
-    $siteType->manualUpdate($request->publish);
+    $siteType->manualUpdate($request->publish, $request->overwriteLayout);
 
     // flash message and redirect
     $request->session()->flash('message', 'Site Type has been saved!');
@@ -186,6 +186,68 @@ class SiteTypesController extends Controller
 
     // install package
     (new SiteType)->installPackage($package->github_url);
+
+    // flash message and redirect
+    $request->session()->flash('message', 'Site Type has been installed!');
+
+    return Redirect::route('site_types.admin.index');
+  }
+
+  /**
+  * Show Activate
+  *
+  * @param Request  $request
+  * @param SiteType $siteType
+  *
+  * @return Redirect
+  */
+  public function showActivate(Request $request, SiteType $siteType)
+  {
+    // get config data
+    $config = $siteType->getConfigForActivation();
+
+    $basicConfig   = $config['basicConfig'];
+    $customModules = $config['customModules'];
+    $customPages   = $config['customPages'];
+
+    return $this->renderUiView('admin/show_activate', compact(
+      'siteType',
+      'basicConfig',
+      'customModules',
+      'customPages'
+    ));
+  }
+
+  /**
+  * Post Activate
+  *
+  * @param Request  $request
+  * @param SiteType $siteType
+  *
+  * @return Redirect
+  */
+  public function postActivate(Request $request, SiteType $siteType)
+  {
+    // get config data
+    $config = $siteType->getConfigForActivation();
+
+    // basic config validation
+    $rules = [];
+    foreach ($config['basicConfig'] as $row) {
+      if (isset($row['is_required_create'])) {
+        $rules[$row['column_name']] = 'required';
+      }
+    }
+
+    if (!empty($rules)) {
+      $request->validate($rules);
+    }
+
+    // activate site type config, modules, and pages
+    $siteType->activateSiteType($config, $request->all());
+
+    // flash message and redirect
+    $request->session()->flash('message', 'Site Type has been activated!');
 
     return Redirect::route('site_types.admin.index');
   }

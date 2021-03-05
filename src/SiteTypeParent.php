@@ -5,6 +5,11 @@ namespace Adaptcms\SiteTypes;
 class SiteTypeParent
 {
   /**
+  * @var bool
+  */
+  public $overwriteLayout = false;
+
+  /**
   * Setup Configuration
   **/
 

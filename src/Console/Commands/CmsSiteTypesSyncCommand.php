@@ -13,7 +13,7 @@ class CmsSiteTypesSyncCommand extends Command
    *
    * @var string
    */
-  protected $signature = 'cms:site-types:sync';
+  protected $signature = 'cms:siteTypes:sync';
 
   /**
    * The console command description.

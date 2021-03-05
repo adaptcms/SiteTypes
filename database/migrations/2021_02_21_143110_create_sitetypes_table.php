@@ -18,6 +18,7 @@ class CreateSitetypesTable extends Migration
       $table->uuid('uuid')->unique();
       $table->string('vendor');
       $table->string('package');
+      $table->string('name');
       $table->string('github_url')->nullable();
       $table->json('composer')->nullable();
       $table->boolean('is_active')->default(false);

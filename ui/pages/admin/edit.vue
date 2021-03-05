@@ -18,7 +18,7 @@
 
       <form @submit.prevent="submit" class="px-4 py-5 sm:px-6 text-gray-500">
         <div class="flex flex-wrap -mx-3 mb-4">
-          <div class="w-full md:w-1/2 px-3 flex-col mb-4">
+          <div class="w-1/2 md:w-1/4 px-3 flex-col mb-4">
             <label for="form-vendor" class="text-lg font-normal text-gray-700 w-auto">
               Vendor
             </label>
@@ -28,7 +28,7 @@
             </span>
           </div>
 
-          <div class="w-full md:w-1/2 px-3 flex-col mb-4">
+          <div class="w-1/2 md:w-1/4 px-3 flex-col mb-4">
             <label for="form-package" class="text-lg font-normal text-gray-700 w-auto">
               Package
             </label>
@@ -58,7 +58,7 @@
             </template>
           </div>
 
-          <div class="w-full md:w-1/4 px-3 flex-col mb-4">
+          <div class="w-full md:w-1/6 px-3 flex-col mb-4">
             <div class="mt-8">
               <Toggle
                 plugin="form-publish"
@@ -76,7 +76,25 @@
             </template>
           </div>
 
-          <div class="w-full md:w-1/4 px-3 flex-col mb-4">
+          <div class="w-full md:w-1/6 px-3 flex-col mb-4">
+            <div class="mt-8">
+              <Toggle
+                plugin="form-overwrite-layout"
+                label="Overwrite Layout"
+                v-model="form.overwriteLayout"
+                :customClass="{ 'border-red-500': errors.overwriteLayout.is, 'border-gray-300': !errors.overwriteLayout.is }"
+                @input="$set(form, 'overwriteLayout', $event)"
+              />
+            </div>
+
+            <template v-if="errors.overwriteLayout.is">
+              <span v-for="error in errors.overwriteLayout.messages" class="border-red-700 block px-2 py-2 text-sm text-red-100 bg-red-500">
+                {{ error }}
+              </span>
+            </template>
+          </div>
+
+          <div class="w-full md:w-1/6 px-3 flex-col mb-4">
             <div class="mt-8">
               <Toggle
                 plugin="form-is_active"
@@ -135,7 +153,8 @@ export default {
       form: {
         github_url: null,
         publish: false,
-        is_active: false
+        is_active: false,
+        overwriteLayout: false
       }
     }
   },
