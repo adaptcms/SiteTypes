@@ -210,7 +210,7 @@ class SiteTypesController extends Controller
     $customModules = $config['customModules'];
     $customPages   = $config['customPages'];
 
-    return $this->renderUiView('admin/show_activate', compact(
+    return $this->renderUiView('admin/activate', compact(
       'siteType',
       'basicConfig',
       'customModules',
@@ -244,10 +244,48 @@ class SiteTypesController extends Controller
     }
 
     // activate site type config, modules, and pages
-    $siteType->activateSiteType($config, $request->all());
+    $siteType->activateSiteType($config, $request);
 
     // flash message and redirect
     $request->session()->flash('message', 'Site Type has been activated!');
+
+    return Redirect::route('site_types.admin.index');
+  }
+
+  /**
+  * Show Settings
+  *
+  * @param Request  $request
+  * @param SiteType $siteType
+  *
+  * @return Redirect
+  */
+  public function showSettings(Request $request, SiteType $siteType)
+  {
+    // get config data
+    $config = $siteType->settings()->all();
+
+    return $this->renderUiView('admin/settings', compact(
+      'siteType',
+      'config'
+    ));
+  }
+
+  /**
+  * Post Settings
+  *
+  * @param Request  $request
+  * @param SiteType $siteType
+  *
+  * @return Redirect
+  */
+  public function postSettings(Request $request, SiteType $siteType)
+  {
+    // save settings
+    $this->saveSettings($request);
+
+    // flash message and redirect
+    $request->session()->flash('message', 'Site Type has been saved!');
 
     return Redirect::route('site_types.admin.index');
   }

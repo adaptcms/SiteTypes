@@ -4,8 +4,11 @@ namespace Adaptcms\SiteTypes\Models;
 
 use Glorand\Model\Settings\Traits\HasSettingsTable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 use Adaptcms\Base\Models\GlobalWarning;
 use Adaptcms\Base\Models\PackageField;
@@ -19,13 +22,14 @@ use Adaptcms\Pages\Models\Page;
 use Storage;
 use URL;
 
-class SiteType extends Model
+class SiteType extends Model implements HasMedia
 {
   use
     HasComposer,
     HasPackager,
     HasSettingsTable,
     HasUuid,
+    InteractsWithMedia,
     Searchable;
 
   /**
@@ -528,119 +532,225 @@ class SiteType extends Model
   /**
   * Activate Site Type
   *
-  * @param array $config
-  * @param array $data
+  * @param array   $config
+  * @param Request $request
   *
   * @return SiteType
   */
-  public function activateSiteType(array $config, array $data)
+  public function activateSiteType(array $config, Request $request)
   {
-    // dd($data);
+    $data = $request->all();
 
     // set basic config data to site type settings
-    if (!empty($config['basicConfig'])) {
-      $basicConfig = [];
-      foreach ($config['basicConfig'] as $row) {
-        $field = $row['column_name'];
-        $value = isset($data[$field]) ? $data[$field] : null;
+    foreach ($config['basicConfig'] as $row) {
+      $field = $row['column_name'];
+      $value = isset($data[$field]) ? $data[$field] : null;
 
-        $basicConfig['config.' . $field] = $value;
+      // get field type model
+      $customField = Field::where('package', $row['field'])->firstOrFail();
+
+      $hasSaved = false;
+      if (!empty($customField)) {
+        $fieldType = $customField->fieldType();
+
+        if (method_exists($fieldType, 'saveToSettings')) {
+          $fieldType->saveToSettings($this, $request, $row, 'config.' . $field);
+
+          $hasSaved = true;
+        }
       }
 
-      // $this->settings()->setMultiple($basicConfig);
+      if (!$hasSaved) {
+        $this->settings()->set('config.' . $field, $value);
+      }
     }
 
     // set up modules and package fields
-    if (!empty($config['customModules'])) {
-      foreach ($config['customModules'] as $module) {
-        $isEnabled = $data['modules'][$module['slug']]['value'] === 'true';
 
-        if ($isEnabled) {
-          // $moduleModel = Module::manualStore($module['name'], false);
+    // first, create and collect modules
+    $modules = collect([]);
+    foreach ($config['customModules'] as $module) {
+      $isEnabled = $data['modules'][$module['slug']]['value'] === 'true';
 
-          foreach ($module['fields'] as $index => $field) {
-            $isFieldEnabled = $data['modules'][$module['slug']]['fields'][$field['slug']] === 'true';
+      if ($isEnabled) {
+        $moduleLookup = Module::where('name', $module['name'])->first();
 
-            if (!$isFieldEnabled) continue;
+        if (!empty($moduleLookup)) {
+          $modules->push($moduleLookup);
+        } else {
+          $modules->push(Module::manualStore($module['name'], false));
+        }
+      }
+    }
 
-            $fieldParams = [];
+    foreach ($modules as $module) {
+      // get fields
+      $fields = [];
+      foreach ($config['customModules'] as $row) {
+        if ($row['slug'] === $module->slug) {
+          $fields = $row['fields'];
 
-            // get field type model
-            $customField = Field::where('package', $field['field'])->firstOrFail();
+          break;
+        }
+      }
 
-            // first field will be primary
-            if ($index === 0) {
-              $fieldParams['is_primary'] = true;
+      foreach ($fields as $index => $field) {
+        // skip if field is not enabled
+        $isFieldEnabled = $data['modules'][$module['slug']]['fields'][$field['slug']] === 'true';
+
+        if (!$isFieldEnabled) continue;
+
+        $fieldParams = [
+          'name' => $field['name']
+        ];
+
+        // get field type model
+        $customField = Field::where('package', $field['field'])->firstOrFail();
+
+        // first field will be primary
+        if ($index === 0) {
+          $fieldParams['is_primary'] = true;
+        }
+
+        // set meta data
+        if (isset($field['meta'])) {
+          $fieldParams['meta'] = $field['meta'];
+
+          $meta = $fieldParams['meta'];
+
+          // if column_name set in meta, set it on field params instead
+          if (isset($meta['column_name'])) {
+            $fieldParams['column_name'] = $meta['column_name'];
+
+            unset($fieldParams['meta']['column_name']);
+          }
+
+          // for relational fields, we need to correctly set the data
+          if (isset($meta['related_module_name'])) {
+            $relatedModule = $modules->firstWhere('name', $meta['related_module_name']);
+
+            if (!empty($relatedModule)) {
+              $fieldParams['meta']['related_package_type'] = get_class($relatedModule);
+              $fieldParams['meta']['related_package_id'] = $relatedModule->id;
+
+              unset($fieldParams['meta']['related_module_name']);
             }
+          }
+        }
 
-            // set meta data
-            if (isset($field['meta'])) {
-              $fieldParams['meta'] = $field['meta'];
-            }
+        // save the package field
+        $packageField = (new PackageField)->manualStore($module, $customField, $fieldParams);
 
-            // $packageField = PackageField::manualStore($moduleModel, $customField, $fieldParams);
+        if (!empty($packageField)) {
+          // set required options if they are set
+          if (!empty($field['is_required_create'])) {
+            $packageField->settings()->set('options.is_required_create', true);
+          }
 
-            if (!empty($packageField)) {
-              // set required options if they are set
-              if (!empty($field['is_required_create'])) {
-                $packageField->settings()->set('options.is_required_create', true);
-              }
-
-              if (!empty($field['is_required_edit'])) {
-                $packageField->settings()->set('options.is_required_edit', true);
-              }
-            }
+          if (!empty($field['is_required_edit'])) {
+            $packageField->settings()->set('options.is_required_edit', true);
           }
         }
       }
     }
 
     // set up pages and package fields
-    if (!empty($config['customPages'])) {
-      foreach ($config['customPages'] as $page) {
-        $isEnabled = $data['pages'][$page['slug']]['value'] === 'true';
 
-        if ($isEnabled) {
-          // $pageModel = Page::manualStore($page['name'], false);
+    // first, create and collect pages
+    $pages = collect([]);
+    foreach ($config['customPages'] as $page) {
+      $isEnabled = $data['pages'][$page['slug']]['value'] === 'true';
 
-          foreach ($page['fields'] as $index => $field) {
-            $isFieldEnabled = $data['pages'][$page['slug']]['fields'][$field['slug']] === 'true';
+      if ($isEnabled) {
+        $pageLookup = Page::where('name', $page['name'])->first();
 
-            if (!$isFieldEnabled) continue;
+        if (!empty($pageLookup)) {
+          $pages->push($pageLookup);
+        } else {
+          // create new page
+          $newPage = new Page;
 
-            $fieldParams = [];
+          $newPage->name = $page['name'];
+          $newPage->url = isset($page['url']) ? $page['url'] : '/' . $page['slug'];
 
-            // get field type model
-            $customField = Field::where('package', $field['field'])->firstOrFail();
+          $newPage = $newPage->manualStore(false);
 
-            // first field will be primary
-            if ($index === 0) {
-              $fieldParams['is_primary'] = true;
-            }
+          $pages->push($newPage);
+        }
+      }
+    }
 
-            // set meta data
-            if (isset($field['meta'])) {
-              $fieldParams['meta'] = $field['meta'];
-            }
+    foreach ($pages as $page) {
+      // get fields
+      $fields = [];
+      foreach ($config['customPages'] as $row) {
+        if ($row['slug'] === $page->slug) {
+          $fields = $row['fields'];
 
-            // $packageField = PackageField::manualStore($pageModel, $customField, $fieldParams);
+          break;
+        }
+      }
 
-            if (!empty($packageField)) {
-              // set required options if they are set
-              if (!empty($field['is_required_create'])) {
-                $packageField->settings()->set('options.is_required_create', true);
-              }
+      foreach ($fields as $index => $field) {
+        // skip if field is not enabled
+        $isFieldEnabled = $data['pages'][$page['slug']]['fields'][$field['slug']] === 'true';
 
-              if (!empty($field['is_required_edit'])) {
-                $packageField->settings()->set('options.is_required_edit', true);
-              }
-            }
+        if (!$isFieldEnabled) continue;
+
+        $fieldParams = [
+          'name' => $field['name']
+        ];
+
+        // get field type model
+        $customField = Field::where('package', $field['field'])->firstOrFail();
+
+        // first field will be primary
+        if ($index === 0) {
+          $fieldParams['is_primary'] = true;
+        }
+
+        // set meta data
+        if (isset($field['meta'])) {
+          $fieldParams['meta'] = $field['meta'];
+
+          $meta = $fieldParams['meta'];
+
+          // if column_name set in meta, set it on field params instead
+          if (isset($meta['column_name'])) {
+            $fieldParams['column_name'] = $meta['column_name'];
+
+            unset($fieldParams['meta']['column_name']);
+          }
+        }
+
+        // save the package field
+        $packageField = (new PackageField)->manualStore($page, $customField, $fieldParams);
+
+        if (!empty($packageField)) {
+          // set required options if they are set
+          if (!empty($field['is_required_create'])) {
+            $packageField->settings()->set('options.is_required_create', true);
+          }
+
+          if (!empty($field['is_required_edit'])) {
+            $packageField->settings()->set('options.is_required_edit', true);
           }
         }
       }
     }
 
-    dd($data);
+    return $this;
+  }
+
+  /**
+  * Save Settings
+  *
+  * @param Request $request
+  *
+  * @return SiteType
+  */
+  public function saveSettings(Request $request)
+  {
 
     return $this;
   }

@@ -24,8 +24,7 @@ class SiteTypes
       'site_types.admin.search',
       'site_types.admin.settings',
       'site_types.admin.install',
-      'site_types.admin.show_activate',
-      'site_types.admin.post_activate'
+      'site_types.admin.activate'
     ];
 
     Permission::syncPackagePermissions($permissions);
