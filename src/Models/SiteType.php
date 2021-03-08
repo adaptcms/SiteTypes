@@ -70,12 +70,11 @@ class SiteType extends Model implements HasMedia
   * Manual Store
   *
   * @param bool $publishPackage
-  * @param bool $overwriteLayout
   *
   * @throws \Exception
   * @return Plugin
   */
-  public function manualStore($publishPackage = false, $overwriteLayout = false)
+  public function manualStore($publishPackage = false)
   {
     $vendor = Str::studly($this->vendor);
     $package = Str::studly($this->package);
@@ -142,8 +141,8 @@ class SiteType extends Model implements HasMedia
       );
     }
 
-    // copy UI component files for use
-    $siteType->copyUiComponents($overwriteLayout, true);
+    // copy ui components
+    $this->copyUiComponents();
 
     return $siteType;
   }
@@ -152,12 +151,11 @@ class SiteType extends Model implements HasMedia
   * Manual Update
   *
   * @param bool $publishPackage
-  * @param bool $overwriteLayout
   *
   * @throws \Exception
   * @return Plugin
   */
-  public function manualUpdate($publishPackage = false, $overwriteLayout = false)
+  public function manualUpdate($publishPackage = false)
   {
     $vendor = Str::studly($this->vendor);
     $package = Str::studly($this->package);
@@ -171,9 +169,6 @@ class SiteType extends Model implements HasMedia
         'name' => substr($package, 8)
       ]
     );
-
-    $copyUiComponents = (!$overwriteLayout && $this->is_active && !$this->getOriginal('is_active'));
-    $disableOtherSiteTypes = ($this->is_active && !$this->getOriginal('is_active'));
 
     $this->save();
 
@@ -189,30 +184,8 @@ class SiteType extends Model implements HasMedia
       );
     }
 
-    // copy ui if overwriteLayout = true
-    if ($overwriteLayout) {
-      $this->copyUiComponents(true);
-    }
-
-    // copy UI components if site type now active
-    if ($copyUiComponents) {
-      $this->copyUiComponents();
-    }
-
-    // disable other site types if this site type is now active
-    if ($disableOtherSiteTypes) {
-      $siteTypes = SiteType::where('id', '!=', $this->id)
-        ->where('is_active', true)
-        ->get();
-
-      if ($siteTypes->count()) {
-        foreach ($siteTypes as $model) {
-          $model->is_active = false;
-
-          $model->manualUpdate();
-        }
-      }
-    }
+    // copy ui components
+    $this->copyUiComponents();
 
     return $this;
   }
@@ -356,12 +329,11 @@ class SiteType extends Model implements HasMedia
   /**
   * Copy Ui components
   *
-  * @param bool $overwriteLayout
-  * @param bool $isNew
+  * @param bool $existingSiteType
   *
   * @return void
   */
-  public function copyUiComponents($overwriteLayout = false, $isNew = false)
+  public function copyUiComponents($existingSiteType = false)
   {
     // start with activate site type component
     $activateUiComponent = 'ActivateSiteType.vue';
@@ -397,20 +369,24 @@ class SiteType extends Model implements HasMedia
     // check if overwriteLayout setting exists and if so, is set to true
     $contents = Storage::disk('packages')->get($this->vendor . '/' . $this->package . '/src/SiteType/' . $this->package . '.php');
 
-    if ($overwriteLayout || ($isNew && strstr($contents, 'overwriteLayout = true'))) {
-      // move default layout to a new filename
-      $layoutPath = 'ui/layouts/layout.vue';
-      $newLayoutPath = 'ui/layouts/defaultLayout.vue';
+    if ($existingSiteType) {
+      $overwriteLayout = $this->siteTypeClass()->overwriteLayout;
 
-      if (!Storage::disk('site')->exists($newLayoutPath)) {
-        Storage::disk('site')->move($layoutPath, $newLayoutPath);
-      }
+      if ($overwriteLayout) {
+        // move default layout to a new filename
+        $layoutPath = 'ui/layouts/layout.vue';
+        $newLayoutPath = 'ui/layouts/defaultLayout.vue';
 
-      // copy over site type layout to be new default layout
-      $layoutPath = $this->vendor . '/' . $this->package . '/ui/layouts/layout.vue';
-      $newLayoutPath = 'Adaptcms/Site/ui/layouts/layout.vue';
-      if (Storage::disk('packages')->exists($layoutPath)) {
-        Storage::disk('packages')->copy($layoutPath, $newLayoutPath);
+        if (!Storage::disk('site')->exists($newLayoutPath)) {
+          Storage::disk('site')->move($layoutPath, $newLayoutPath);
+        }
+
+        // copy over site type layout to be new default layout
+        $layoutPath = $this->vendor . '/' . $this->package . '/ui/layouts/layout.vue';
+        $newLayoutPath = 'Adaptcms/Site/ui/layouts/layout.vue';
+        if (Storage::disk('packages')->exists($layoutPath)) {
+          Storage::disk('packages')->copy($layoutPath, $newLayoutPath);
+        }
       }
     }
 
@@ -478,7 +454,7 @@ class SiteType extends Model implements HasMedia
   *
   * @return array
   */
-  public function getConfigForActivation()
+  public function getConfig()
   {
     $data = [
       'basicConfig'   => [],
@@ -501,10 +477,24 @@ class SiteType extends Model implements HasMedia
     $customModules = $this->siteTypeClass()->modules;
 
     foreach ($customModules as $key => $row) {
+      // quick validation check
+      if (!isset($row['name']) || empty($row['fields'])) {
+        unset($customModules[$key]);
+
+        continue;
+      }
+
       $customModules[$key]['slug'] = Str::slug($row['name']);
       $customModules[$key]['value'] = true;
 
       foreach ($row['fields'] as $fieldKey => $field) {
+        // quick validation check
+        if (!isset($row['name']) || !isset($row['field'])) {
+          unset($customModules[$key]['fields'][$fieldKey]);
+
+          continue;
+        }
+
         $customModules[$key]['fields'][$fieldKey]['slug'] = Str::slug($field['name']);
         $customModules[$key]['fields'][$fieldKey]['value'] = true;
       }
@@ -515,10 +505,24 @@ class SiteType extends Model implements HasMedia
     $customPages = $this->siteTypeClass()->pages;
 
     foreach ($customPages as $key => $row) {
+      // quick validation check
+      if (!isset($row['name']) || !isset($row['url']) || empty($row['fields'])) {
+        unset($customPages[$key]);
+
+        continue;
+      }
+
       $customPages[$key]['slug'] = Str::slug($row['name']);
       $customPages[$key]['value'] = true;
 
       foreach ($row['fields'] as $fieldKey => $field) {
+        // quick validation check
+        if (!isset($row['name']) || !isset($row['field'])) {
+          unset($customPages[$key]['fields'][$fieldKey]);
+
+          continue;
+        }
+
         $customPages[$key]['fields'][$fieldKey]['slug'] = Str::slug($field['name']);
         $customPages[$key]['fields'][$fieldKey]['value'] = true;
       }
@@ -662,7 +666,7 @@ class SiteType extends Model implements HasMedia
       $isEnabled = $data['pages'][$page['slug']]['value'] === 'true';
 
       if ($isEnabled) {
-        $pageLookup = Page::where('name', $page['name'])->first();
+        $pageLookup = Page::where('url', $page['url'])->first();
 
         if (!empty($pageLookup)) {
           $pages->push($pageLookup);
@@ -739,6 +743,28 @@ class SiteType extends Model implements HasMedia
       }
     }
 
+    // set as active
+    $this->is_active = true;
+
+    $this->save();
+
+    // look for any other site types that are active
+    // and disable them
+    $siteTypes = SiteType::where('id', '!=', $this->id)
+      ->where('is_active', true)
+      ->get();
+
+    if ($siteTypes->count()) {
+      foreach ($siteTypes as $model) {
+        $model->is_active = false;
+
+        $model->manualUpdate();
+      }
+    }
+
+    // copy UI component files for use
+    $siteType->copyUiComponents(true);
+
     return $this;
   }
 
@@ -751,7 +777,58 @@ class SiteType extends Model implements HasMedia
   */
   public function saveSettings(Request $request)
   {
+    $config = $this->getConfig();
+    $data = $request->all();
+
+    // set basic config data to site type settings
+    foreach ($config['basicConfig'] as $row) {
+      $field = $row['column_name'];
+      $value = isset($data[$field]) ? $data[$field] : null;
+
+      // get field type model
+      $customField = Field::where('package', $row['field'])->firstOrFail();
+
+      $hasSaved = false;
+      if (!empty($customField)) {
+        $fieldType = $customField->fieldType();
+
+        if (method_exists($fieldType, 'saveToSettings')) {
+          $fieldType->saveToSettings($this, $request, $row, 'config.' . $field);
+
+          $hasSaved = true;
+        }
+      }
+
+      if (!$hasSaved) {
+        $this->settings()->set('config.' . $field, $value);
+      }
+    }
 
     return $this;
+  }
+
+  /**
+  * Get Form Meta
+  *
+  * @param Request $request
+  *
+  * @return array
+  */
+  public function getFormMeta(Request $request)
+  {
+    $config = $this->getConfig();
+
+    $formMeta = [];
+    foreach ($config['basicConfig'] as $field) {
+      $columnName = $field['column_name'];
+      $customField = Field::where('package', $field['field'])->firstOrFail();
+      $fieldType = $customField->fieldType();
+
+      if (method_exists($fieldType, 'withSettingsFormMeta')) {
+        $formMeta[$columnName] = $fieldType->withSettingsFormMeta($request, $this, $columnName);
+      }
+    }
+
+    return $formMeta;
   }
 }

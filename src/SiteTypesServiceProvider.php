@@ -3,6 +3,9 @@
 namespace Adaptcms\SiteTypes;
 
 use Illuminate\Support\ServiceProvider;
+use Inertia\Inertia;
+
+use Adaptcms\SiteTypes\Models\SiteType;
 
 class SiteTypesServiceProvider extends ServiceProvider
 {
@@ -22,6 +25,16 @@ class SiteTypesServiceProvider extends ServiceProvider
     // Publishing is only necessary when using the CLI.
     if ($this->app->runningInConsole()) {
       $this->bootForConsole();
+    }
+
+    // set active site type settings to view
+    $siteType = SiteType::where('is_active', true)->first();
+
+    if (!empty($siteType)) {
+      $settings = $siteType->settings()->all();
+      $settings = $settings['config'];
+
+      Inertia::share('siteTypeConfig', $settings);
     }
   }
 

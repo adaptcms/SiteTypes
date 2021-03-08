@@ -69,7 +69,7 @@ class SiteTypesController extends Controller
     // create site type
     $siteType->fill($request->only('vendor', 'package', 'github_url'));
 
-    $siteType->manualStore($request->publish, $request->overwriteLayout);
+    $siteType->manualStore($request->publish);
 
     // flash message and redirect
     $request->session()->flash('message', 'Site Type has been created!');
@@ -107,7 +107,7 @@ class SiteTypesController extends Controller
     // save SiteType
     $siteType->fill($request->only('vendor', 'package', 'github_url'));
 
-    $siteType->manualUpdate($request->publish, $request->overwriteLayout);
+    $siteType->manualUpdate($request->publish);
 
     // flash message and redirect
     $request->session()->flash('message', 'Site Type has been saved!');
@@ -204,7 +204,7 @@ class SiteTypesController extends Controller
   public function showActivate(Request $request, SiteType $siteType)
   {
     // get config data
-    $config = $siteType->getConfigForActivation();
+    $config = $siteType->getConfig();
 
     $basicConfig   = $config['basicConfig'];
     $customModules = $config['customModules'];
@@ -229,7 +229,7 @@ class SiteTypesController extends Controller
   public function postActivate(Request $request, SiteType $siteType)
   {
     // get config data
-    $config = $siteType->getConfigForActivation();
+    $config = $siteType->getConfig();
 
     // basic config validation
     $rules = [];
@@ -263,29 +263,39 @@ class SiteTypesController extends Controller
   public function showSettings(Request $request, SiteType $siteType)
   {
     // get config data
-    $config = $siteType->settings()->all();
+    $config = $siteType->getConfig();
+    $config = $config['basicConfig'];
+
+    // get saved settings data
+    $settings = $siteType->settings()->all();
+    $settings = $settings['config'];
+
+    // retrieve any form meta
+    $formMeta = $siteType->getFormMeta($request);
 
     return $this->renderUiView('admin/settings', compact(
       'siteType',
-      'config'
+      'config',
+      'settings',
+      'formMeta'
     ));
   }
 
   /**
-  * Post Settings
+  * Update Settings
   *
   * @param Request  $request
   * @param SiteType $siteType
   *
   * @return Redirect
   */
-  public function postSettings(Request $request, SiteType $siteType)
+  public function updateSettings(Request $request, SiteType $siteType)
   {
     // save settings
-    $this->saveSettings($request);
+    $siteType->saveSettings($request);
 
     // flash message and redirect
-    $request->session()->flash('message', 'Site Type has been saved!');
+    $request->session()->flash('message', 'Site Type settings have been saved!');
 
     return Redirect::route('site_types.admin.index');
   }

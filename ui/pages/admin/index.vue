@@ -94,6 +94,12 @@
               </button>
             </TableColumn>
             <TableColumn customClass="text-right">
+              <ConfigAction
+                v-if="siteType.is_active"
+                permission="site_types.admin.settings"
+                route="site_types.admin.show_settings"
+                :routeParams="{ siteType: siteType.id }"
+              />
               <ShowAction route="site_types.admin.show" :routeParams="{ siteType: siteType.id }" />
               <EditAction route="site_types.admin.edit" :routeParams="{ siteType: siteType.id }" />
               <DeleteAction
@@ -121,6 +127,7 @@ import TableStart from '@/Adaptcms/Base/ui/components/Table/TableStart'
 import EditAction from '@/Adaptcms/Base/ui/components/Table/Actions/EditAction'
 import DeleteAction from '@/Adaptcms/Base/ui/components/Table/Actions/DeleteAction'
 import ShowAction from '@/Adaptcms/Base/ui/components/Table/Actions/ShowAction'
+import ConfigAction from '@/Adaptcms/Base/ui/components/Table/Actions/ConfigAction'
 import CreateButton from '@/Adaptcms/Base/ui/components/Index/CreateButton'
 import NoItems from '@/Adaptcms/Base/ui/components/Index/NoItems'
 import Pagination from '@/Adaptcms/Base/ui/components/Pagination'
@@ -142,6 +149,7 @@ export default {
   ],
 
   components: {
+    ConfigAction,
     CreateButton,
     EditAction,
     DeleteAction,

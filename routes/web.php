@@ -26,6 +26,6 @@ Route::middleware([ 'bindings', 'auth', 'can:base.admin.access' ])->prefix('admi
     Route::post('/install/{slug}', '\Adaptcms\SiteTypes\Http\Controllers\Admin\SiteTypesController@install')->middleware([ 'can:site_types.admin.install' ])->name('install');
     Route::get('/search', '\Adaptcms\SiteTypes\Http\Controllers\Admin\SiteTypesController@search')->middleware([ 'can:site_types.admin.search' ])->name('search');
     Route::get('/settings/{siteType:id}', '\Adaptcms\SiteTypes\Http\Controllers\Admin\SiteTypesController@showSettings')->middleware([ 'can:site_types.admin.settings' ])->name('show_settings');
-    Route::post('/settings/{siteType:id}', '\Adaptcms\SiteTypes\Http\Controllers\Admin\SiteTypesController@postSettings')->middleware([ 'can:site_types.admin.settings' ])->name('post_settings');
+    Route::post('/settings/{siteType:id}', '\Adaptcms\SiteTypes\Http\Controllers\Admin\SiteTypesController@updateSettings')->middleware([ 'can:site_types.admin.settings' ])->name('update_settings');
   });
 });
