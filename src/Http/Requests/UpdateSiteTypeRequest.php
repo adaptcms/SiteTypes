@@ -24,8 +24,8 @@ class UpdateSiteTypeRequest extends FormRequest
   public function rules()
   {
     return [
-      'vendor'  => 'required',
-      'package' => 'required'
+      'vendor'  => 'sometimes|required',
+      'package' => 'sometimes|required'
     ];
   }
 }

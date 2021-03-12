@@ -170,22 +170,29 @@ class SiteType extends Model implements HasMedia
       ]
     );
 
+    // see if site type has been deactivated
+    $deactivateSiteType = (!$this->is_active && $this->getOriginal('is_active'));
+
     $this->save();
 
     // get fresh instance
     $this->fresh();
 
-    // publish package if chosen
-    if ($publishPackage && !empty($this->github_url)) {
-      $this->publishPackage(
-        $this->vendor,
-        $this->package,
-        $this->github_url
-      );
-    }
+    if ($deactivateSiteType) {
+      $this->deactivateSiteType();
+    } else {
+      // publish package if chosen
+      if ($publishPackage && !empty($this->github_url)) {
+        $this->publishPackage(
+          $this->vendor,
+          $this->package,
+          $this->github_url
+        );
+      }
 
-    // copy ui components
-    $this->copyUiComponents();
+      // copy ui components
+      $this->copyUiComponents();
+    }
 
     return $this;
   }
@@ -383,9 +390,11 @@ class SiteType extends Model implements HasMedia
 
         // copy over site type layout to be new default layout
         $layoutPath = $this->vendor . '/' . $this->package . '/ui/layouts/layout.vue';
-        $newLayoutPath = 'Adaptcms/Site/ui/layouts/layout.vue';
+        $newLayoutPath = 'ui/layouts/layout.vue';
         if (Storage::disk('packages')->exists($layoutPath)) {
-          Storage::disk('packages')->copy($layoutPath, $newLayoutPath);
+          $contents = Storage::disk('packages')->get($layoutPath);
+
+          Storage::disk('site')->put($newLayoutPath, $contents);
         }
       }
     }
@@ -489,7 +498,7 @@ class SiteType extends Model implements HasMedia
 
       foreach ($row['fields'] as $fieldKey => $field) {
         // quick validation check
-        if (!isset($row['name']) || !isset($row['field'])) {
+        if (!isset($field['name']) || !isset($field['field'])) {
           unset($customModules[$key]['fields'][$fieldKey]);
 
           continue;
@@ -517,7 +526,7 @@ class SiteType extends Model implements HasMedia
 
       foreach ($row['fields'] as $fieldKey => $field) {
         // quick validation check
-        if (!isset($row['name']) || !isset($row['field'])) {
+        if (!isset($field['name']) || !isset($field['field'])) {
           unset($customPages[$key]['fields'][$fieldKey]);
 
           continue;
@@ -582,7 +591,10 @@ class SiteType extends Model implements HasMedia
         if (!empty($moduleLookup)) {
           $modules->push($moduleLookup);
         } else {
-          $modules->push(Module::manualStore($module['name'], false));
+          $newModule = Module::manualStore($module['name'], false);
+          $newModule->fresh();
+
+          $modules->push($newModule);
         }
       }
     }
@@ -763,7 +775,8 @@ class SiteType extends Model implements HasMedia
     }
 
     // copy UI component files for use
-    $siteType->copyUiComponents(true);
+    $this->copyUiComponents(true);
+    $this->copyUiPages();
 
     return $this;
   }
@@ -830,5 +843,152 @@ class SiteType extends Model implements HasMedia
     }
 
     return $formMeta;
+  }
+
+  /**
+  * Deactivate SiteType
+  *
+  * @return SiteType
+  */
+  public function deactivateSiteType()
+  {
+    // if overwriteLayout = true, set original layout back
+    $overwriteLayout = $this->siteTypeClass()->overwriteLayout;
+
+    if ($overwriteLayout) {
+      $layoutPath = 'ui/layouts/layout.vue';
+      $defaultLayoutPath = 'ui/layouts/defaultLayout.vue';
+
+      if (Storage::disk('site')->exists($defaultLayoutPath)) {
+        $defaultLayoutContents = Storage::disk('site')->get($defaultLayoutPath);
+
+        Storage::disk('site')->put($layoutPath, $defaultLayoutContents);
+      }
+    }
+
+    // delete modules set in config of site type class file
+    $config = $this->getConfig();
+    foreach ($config['customModules'] as $row) {
+      $module = Module::where('name', $row['name'])->first();
+
+      if (!empty($module)) {
+        \Log::info('deleted module `' . $row['name'] . '`');
+        $module->manualDestroy();
+      } else {
+        \Log::info('could NOT delete module `' . $row['name'] . '`');
+      }
+    }
+
+    // delete pages set in config of site type class file
+    foreach ($config['customPages'] as $row) {
+      $page = Page::where('url', $row['url'])->first();
+
+      if (!empty($page)) {
+        \Log::info('deleted page `' . $row['url'] . '`');
+        $page->manualDestroy();
+      } else {
+        \Log::info('could NOT delete page `' . $row['url'] . '`');
+      }
+    }
+
+    $this->deleteUiPages();
+
+    return $this;
+  }
+
+  /**
+  * Copy Ui Pages
+  *
+  * @return void
+  */
+  public function copyUiPages()
+  {
+    $uiPath = $this->vendor . '/' . $this->package . '/ui';
+
+    // only proceed to copy pages if a pages folder exists for the site type
+    if (Storage::disk('packages')->exists($uiPath) && Storage::disk('packages')->exists($uiPath . '/pages')) {
+      $pageFolders = Storage::disk('packages')->directories($uiPath . '/pages');
+
+      // loop through folders within 'pages'
+      foreach ($pageFolders as $folderPath) {
+        // check if folder exists
+        // if it does not, create it
+        $folder = str_replace($uiPath . '/pages', '', $folderPath);
+        if (!Storage::disk('site')->exists('ui/pages' . $folder)) {
+          Storage::disk('site')->makeDirectory('ui/pages' . $folder);
+        }
+
+        // copy page files to `Site`
+        $files = Storage::disk('packages')->files($folderPath);
+        foreach ($files as $filePath) {
+          $file = str_replace($uiPath . '/pages' . $folder, '', $filePath);
+          $contents = Storage::disk('packages')->get($filePath);
+
+          Storage::disk('site')->put('ui/pages' . $folder . $file, $contents);
+        }
+
+        // look for any folders within a folder in `/ui/pages`
+        // an example being custom modules pages at say `/ui/pages/modules/Locations/index.vue`
+        $folders = Storage::disk('packages')->directories($folderPath);
+        foreach ($folders as $secondFolderPath) {
+          $secondFolder = str_replace($uiPath . '/pages' . $folder, '', $secondFolderPath);
+          if (!Storage::disk('site')->exists('ui/pages' . $folder .$secondFolder)) {
+            Storage::disk('site')->makeDirectory('ui/pages' . $folder . $secondFolder);
+          }
+
+          $files = Storage::disk('packages')->files($secondFolderPath);
+          foreach ($files as $filePath) {
+            $file = str_replace($uiPath . '/pages' . $folder .$secondFolder, '', $filePath);
+            $contents = Storage::disk('packages')->get($filePath);
+
+            Storage::disk('site')->put('ui/pages' . $folder . $secondFolder . $file, $contents);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+  * Delete Ui Pages
+  *
+  * @return void
+  */
+  public function deleteUiPages()
+  {
+    $uiPath = $this->vendor . '/' . $this->package . '/ui';
+
+    // only proceed to delete pages if a pages folder exists for the site type
+    if (Storage::disk('packages')->exists($uiPath) && Storage::disk('packages')->exists($uiPath . '/pages')) {
+      $pageFolders = Storage::disk('packages')->directories($uiPath . '/pages');
+
+      foreach ($pageFolders as $folderPath) {
+        $folder = str_replace($uiPath . '/pages', '', $folderPath);
+
+        // if there is a custom folder in ui
+        // delete from `Site`
+        if (!in_array($folder, [ '/pages', '/modules' ])) {
+          if (Storage::disk('site')->exists('ui/pages' . $folder)) {
+            Storage::disk('site')->deleteDirectory('ui/pages' . $folder);
+          }
+        }
+
+        // for pages folder we need to reset any overwritten
+        // existing pages from the site type, such as the home page
+        if ($folder === 'pages') {
+          $files = Storage::disk('packages')->files($folderPath);
+
+          foreach ($files as $filePath) {
+            $file = str_replace($uiPath . '/pages' . $folder, '', $filePath);
+
+            if (Storage::disk('site')->exists('ui/pages/pages' . $file)) {
+              // empty/default page contents to reset the page
+              $contents = Storage::disk('packages')->get('Adaptcms/Pages/src/Skeletons/EmptyPage.vue');
+
+              Storage::disk('site')->put('ui/pages/pages' . $file, $contents);
+            }
+          }
+        }
+      }
+    }
   }
 }

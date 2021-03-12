@@ -105,7 +105,7 @@ class SiteTypesController extends Controller
   public function update(UpdateSiteTypeRequest $request, SiteType $siteType)
   {
     // save SiteType
-    $siteType->fill($request->only('vendor', 'package', 'github_url'));
+    $siteType->fill($request->only('vendor', 'package', 'github_url', 'is_active'));
 
     $siteType->manualUpdate($request->publish);
 
@@ -210,11 +210,20 @@ class SiteTypesController extends Controller
     $customModules = $config['customModules'];
     $customPages   = $config['customPages'];
 
+    // get saved settings data
+    $settings = $siteType->settings()->all();
+    $settings = $settings['config'];
+
+    // retrieve any form meta
+    $formMeta = $siteType->getFormMeta($request);
+
     return $this->renderUiView('admin/activate', compact(
       'siteType',
       'basicConfig',
       'customModules',
-      'customPages'
+      'customPages',
+      'settings',
+      'formMeta'
     ));
   }
 

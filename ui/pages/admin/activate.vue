@@ -20,7 +20,9 @@
         <div class="pb-4 border-b border-gray-100">
           <div class="bg-blue-100 p-5 w-full sm:w-1/2 border-l-4 border-blue-500 my-6 mx-auto">
             <div class="flex space-x-3 text-blue-700">
-              <i class="fas fa-info-circle mr-3 mt-2" />
+              <svg class="w-6 h-6 mr-2 mt-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+              </svg>
 
               <div class="flex-1 leading-tight">
                 Please note that by installing this site type, there is a risk of losing data currently on your website. We review every site type manually to ensure a high quality, but still be careful when activating a site type.
@@ -156,7 +158,9 @@ export default {
     'siteType',
     'basicConfig',
     'customModules',
-    'customPages'
+    'customPages',
+    'settings',
+    'formMeta'
   ],
 
   mixins: [
@@ -229,7 +233,6 @@ export default {
         }
       }
 
-      // console.log(JSON.stringify(Object.fromEntries(form)))
       this.$inertia.post(this.$route('site_types.admin.post_activate', { siteType: this.siteType.id }), form)
     }
   },
@@ -241,7 +244,16 @@ export default {
     for (let i in fields) {
       let field = fields[i]
 
-      this.$set(this.form, field.column_name, null)
+      if (typeof this.settings[field.column_name] == 'undefined') {
+        this.$set(this.form, field.column_name, null)
+      } else {
+        this.$set(this.form, field.column_name, this.settings[field.column_name])
+      }
+
+      this.$set(this.basicConfig[i], 'meta', {
+        ...field.meta,
+        ...this.formMeta
+      })
 
       this.$set(this.errors, field.column_name, {
         is: false,

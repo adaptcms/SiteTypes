@@ -166,7 +166,7 @@ export default {
 
   methods: {
     async deactivateSiteType (siteType) {
-      if (confirm('Are you sure you want to deactivate this site type?')) {
+      if (confirm('Are you sure you want to deactivate this site type? Data related to this site type will be PERMANENTLY DELETED.')) {
         let url = this.$route('site_types.admin.update', { siteType: siteType.id })
 
         this.$inertia.post(url, {
