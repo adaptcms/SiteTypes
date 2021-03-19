@@ -86,7 +86,7 @@
               Created
             </dt>
             <dd class="mt-1 text-sm leading-5 text-gray-900 sm:mt-0 sm:col-span-2">
-              {{ siteType.created_at | formatDate }}
+              {{ formatDate(siteType.created_at) }}
             </dd>
           </div>
         </dl>

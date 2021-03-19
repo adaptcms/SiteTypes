@@ -79,7 +79,7 @@
             </TableColumn>
             <TableColumn>
               <span class="text-sm leading-5 text-gray-500">
-                {{ siteType.created_at | formatDate }}
+                {{ formatDate(siteType.created_at) }}
               </span>
             </TableColumn>
             <TableColumn>
@@ -107,9 +107,10 @@
                 permission="site_types.admin.settings"
                 route="site_types.admin.show_settings"
                 :routeParams="{ siteType: siteType.id }"
+                :classes="[ 'mr-1' ]"
               />
-              <ShowAction route="site_types.admin.show" :routeParams="{ siteType: siteType.id }" />
-              <EditAction route="site_types.admin.edit" :routeParams="{ siteType: siteType.id }" />
+              <ShowAction route="site_types.admin.show" :routeParams="{ siteType: siteType.id }" :classes="[ 'mr-1' ]" />
+              <EditAction route="site_types.admin.edit" :routeParams="{ siteType: siteType.id }" :classes="[ 'mr-1' ]" />
               <DeleteAction
                 route="site_types.admin.delete"
                 :routeParams="{ siteType: siteType.id }"

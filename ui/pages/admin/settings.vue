@@ -35,8 +35,8 @@
                 :errors="errors"
                 :formMeta="formMeta"
                 action="create"
-                @input="$set(form, field.column_name, $event)"
-                @extra="$set(form, $event.key, $event.value)"
+                @update:modelValue="form[field.column_name] = $event"
+                @extra="form[$event.key] = $event.value"
               />
 
               <template v-if="errors[field.column_name].is">
@@ -123,12 +123,12 @@ export default {
     for (let i in fields) {
       let field = fields[i]
 
-      this.$set(this.form, field.column_name, this.settings[field.column_name])
+      this.form[field.column_name] = this.settings[field.column_name]
 
-      this.$set(this.errors, field.column_name, {
+      this.errors[field.column_name] = {
         is: false,
         messages: []
-      })
+      }
     }
 
     this.isLoaded = true

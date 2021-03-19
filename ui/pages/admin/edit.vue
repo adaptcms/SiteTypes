@@ -65,7 +65,7 @@
                 label="Publish Package"
                 v-model="form.publish"
                 :customClass="{ 'border-red-500': errors.publish.is, 'border-gray-300': !errors.publish.is }"
-                @input="$set(form, 'publish', $event)"
+                @update:modelValue="form.publish = $event"
               />
             </div>
 
@@ -83,7 +83,7 @@
                 label="Is Active?"
                 v-model="form.is_active"
                 :customClass="{ 'border-red-500': errors.is_active.is, 'border-gray-300': !errors.is_active.is }"
-                @input="$set(form, 'is_active', $event)"
+                @update:modelValue="form.is_active = $event"
               />
             </div>
 

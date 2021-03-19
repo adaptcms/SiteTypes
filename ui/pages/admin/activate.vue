@@ -60,8 +60,8 @@
                   :errors="errors"
                   :formMeta="field.meta"
                   action="create"
-                  @input="$set(form, field.column_name, $event)"
-                  @extra="$set(form, $event.key, $event.value)"
+                  @update:modelValue="form[field.column_name] = $event"
+                  @extra="form[$event.key] = $event.value"
                 />
 
                 <template v-if="errors[field.column_name].is">
@@ -245,20 +245,20 @@ export default {
       let field = fields[i]
 
       if (typeof this.settings[field.column_name] == 'undefined') {
-        this.$set(this.form, field.column_name, null)
+        this.form[field.column_name] = null
       } else {
-        this.$set(this.form, field.column_name, this.settings[field.column_name])
+        this.form[field.column_name] = this.settings[field.column_name]
       }
 
-      this.$set(this.basicConfig[i], 'meta', {
+      this.basicConfig[i].meta = {
         ...field.meta,
         ...this.formMeta
-      })
+      }
 
-      this.$set(this.errors, field.column_name, {
+      this.errors[field.column_name] = {
         is: false,
         messages: []
-      })
+      }
     }
 
     // set up custom modules
@@ -267,17 +267,17 @@ export default {
     for (let i in modules) {
       let module = modules[i]
 
-      this.$set(this.formModules, module.slug, {
+      this.formModules[module.slug] = {
         value: module.value,
         fields: []
-      })
+      }
 
       let fields = module.fields
 
       for (let k in fields) {
         let field = fields[k]
 
-        this.$set(this.formModules[module.slug].fields, field.slug, field.value)
+        this.formModules[module.slug].fields[field.slug] = field.value
       }
     }
 
@@ -287,17 +287,17 @@ export default {
     for (let i in pages) {
       let page = pages[i]
 
-      this.$set(this.formPages, page.slug, {
+      this.formPages[page.slug] = {
         value: page.value,
         fields: []
-      })
+      }
 
       let fields = page.fields
 
       for (let k in fields) {
         let field = fields[k]
 
-        this.$set(this.formPages[page.slug].fields, field.slug, field.value)
+        this.formPages[page.slug].fields[field.slug] = field.value
       }
     }
 
