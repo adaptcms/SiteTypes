@@ -83,14 +83,14 @@
               </span>
             </TableColumn>
             <TableColumn>
-              <inertia-link
+              <Link
                 v-if="!siteType.is_active"
                 :href="$route('site_types.admin.show_activate', { siteType: siteType.id })"
                 class="inline-block text-center bg-pink-500 text-white text-base font-bold rounded-full py-2 px-4 lg:my-4 lg:py-4 lg:px-8 shadow-lg opacity-75 hover:opacity-100"
 
               >
                 Activate
-              </inertia-link>
+              </Link>
 
               <button
                 v-if="siteType.is_active"
@@ -127,6 +127,7 @@
 </template>
 
 <script>
+import { Link } from '@inertiajs/inertia-vue3'
 import Layout from '@/Adaptcms/Base/ui/layouts/AdminLayout'
 import AdminUtilityMixin from '@/Adaptcms/Base/ui/mixins/AdminUtilityMixin'
 import EmptyHeaderColumn from '@/Adaptcms/Base/ui/components/Table/EmptyHeaderColumn'
@@ -170,7 +171,8 @@ export default {
     SearchInput,
     ShowAction,
     TableColumn,
-    TableStart
+    TableStart,
+    Link
   },
 
   methods: {
