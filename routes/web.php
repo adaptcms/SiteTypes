@@ -11,7 +11,7 @@
 |
 */
 
-Route::middleware([ 'auth', 'can:base.admin.access' ])->prefix('admin')->name('site_types.')->group(function () {
+Route::middleware([ 'bindings', 'auth', 'can:base.admin.access' ])->prefix('admin')->name('site_types.')->group(function () {
   // Admin SiteTypes
   Route::prefix('site-types')->name('admin.')->group(function () {
     Route::get('/', '\Adaptcms\SiteTypes\Http\Controllers\Admin\SiteTypesController@index')->middleware([ 'can:site_types.admin.index' ])->name('index');
